@@ -14,7 +14,7 @@ df = pl.read_excel('depositos_oinks.xlsx')
 st.write(df)
 
 # O convertirlo a lista de dicts para que se vea mejor en streamlit
-st.dataframe(df.to_dicts())
+# st.dataframe(df.to_dicts())
 
 # ---------------------------------
 st.subheader("Gráfico sencillo con Matplotlib")
