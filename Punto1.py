@@ -2,6 +2,7 @@ import streamlit as st
 import polars as pl  # Cambiamos pandas por polars
 import matplotlib.pyplot as plt
 import plotly.express as px
+import pandas as pd  # Asegurar compatibilidad con Pandas
 
 st.title("Visualización de Ejemplo")
 
@@ -20,8 +21,11 @@ st.subheader("Gráfico sencillo con Matplotlib")
 # Convertimos a pandas para usar con Matplotlib
 df_pd = df.to_pandas()
 
-# Agrupar por usuario y calcular el promedio de operation_value
-df_grouped = df_pd.groupby("user_id", as_index=False).mean()
+# Asegurar que 'operation_value' es numérico
+df_pd["operation_value"] = pd.to_numeric(df_pd["operation_value"], errors="coerce")
+
+# Agrupar por 'user_id' y calcular la media solo para 'operation_value'
+df_grouped = df_pd.groupby("user_id", as_index=False)["operation_value"].mean()
 
 # Graficar con Matplotlib
 fig, ax = plt.subplots(figsize=(12, 5))
