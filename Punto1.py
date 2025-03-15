@@ -3,6 +3,7 @@ import polars as pl  # Cambiamos pandas por polars
 import matplotlib.pyplot as plt
 import plotly.express as px
 import pandas as pd  # Asegurar compatibilidad con Pandas
+from sklearn.preprocessing import MinMaxScaler
 
 st.title("Visualización de Ejemplo")
 
@@ -27,12 +28,16 @@ df_pd["operation_value"] = pd.to_numeric(df_pd["operation_value"], errors="coerc
 # Agrupar por 'user_id' y calcular la media solo para 'operation_value'
 df_grouped = df_pd.groupby("user_id", as_index=False)["operation_value"].mean()
 
+# Normalizar los valores de 'operation_value'
+scaler = MinMaxScaler()
+df_grouped["operation_value"] = scaler.fit_transform(df_grouped[["operation_value"]])
+
 # Graficar con Matplotlib
 fig, ax = plt.subplots(figsize=(12, 5))
 ax.bar(df_grouped["user_id"], df_grouped["operation_value"], color="skyblue")
 ax.set_xlabel("User ID")
-ax.set_ylabel("Average Operation Value")
-ax.set_title("Promedio del Valor de Operaciones por Usuario")
+ax.set_ylabel("Normalized Operation Value")
+ax.set_title("Valor Normalizado de Operaciones por Usuario")
 ax.tick_params(axis='x', rotation=90)  # Rotar etiquetas para mejor visibilidad
 
 # Mostrar en Streamlit
