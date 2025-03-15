@@ -20,6 +20,14 @@ st.dataframe(df_pd.head(50))  # Muestra las primeras 50 filas
 # Convertir "operation_date" a formato datetime en Pandas
 df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors='coerce')
 
+# Verificar si "operation_value" es numérico y no tiene NaN
+if "operation_value" in df_pd.columns:
+    df_pd = df_pd[pd.to_numeric(df_pd["operation_value"], errors="coerce").notna()]
+    df_pd["operation_value"] = df_pd["operation_value"].astype(float)
+else:
+    st.error("No se encontró la columna 'operation_value'. No se puede continuar.")
+    st.stop()
+
 # Normalizar "operation_value"
 scaler = MinMaxScaler()
 df_pd["normalized_operation_value"] = scaler.fit_transform(df_pd[["operation_value"]])
@@ -46,8 +54,11 @@ st.plotly_chart(fig)
 # --- Calificación de Usuarios ---
 st.subheader("Calificación de Usuarios")
 
-# Verificar si la columna "user_id" está en los datos
+# Verificar si la columna "user_id" existe
 if "user_id" in df_pd.columns:
+    df_pd = df_pd.dropna(subset=["user_id"])  # Eliminar usuarios nulos
+    df_pd["user_id"] = df_pd["user_id"].astype(str)  # Convertir a string
+
     # Cálculo de métricas por usuario
     user_metrics = df_pd.groupby("user_id").agg(
         frequency=("operation_value", "count"),  # Número de transacciones
