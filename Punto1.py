@@ -1,44 +1,30 @@
 import streamlit as st
-import polars as pl  # Cambiamos pandas por polars
+import polars as pl  
 import matplotlib.pyplot as plt
 import plotly.express as px
-import pandas as pd  # Asegurar compatibilidad con Pandas
 from sklearn.preprocessing import MinMaxScaler
 
 st.title("Visualización de Ejemplo")
 
-st.subheader("Subtítulo")
-
-# Creamos el DataFrame con polars
+# Cargar datos
 data = pl.read_excel('depositos_oinks.xlsx')
-
 df = pl.DataFrame(data)
 
-# Mostrar el DataFrame en Streamlit (convertido a pandas para st.dataframe)
-st.dataframe(df.to_pandas())
-
-st.subheader("Gráfico sencillo con Matplotlib")
-
-# Convertimos a pandas para usar con Matplotlib
+# Convertir a pandas para procesamiento
 df_pd = df.to_pandas()
 
-# Asegurar que 'operation_value' es numérico
-df_pd["operation_value"] = pd.to_numeric(df_pd["operation_value"], errors="coerce")
-
-# Agrupar por 'user_id' y calcular la media solo para 'operation_value'
-df_grouped = df_pd.groupby("user_id", as_index=False)["operation_value"].mean()
-
-# Normalizar los valores de 'operation_value'
+# Normalizar el campo "operation_value"
 scaler = MinMaxScaler()
-df_grouped["operation_value"] = scaler.fit_transform(df_grouped[["operation_value"]])
+df_pd["normalized_operation_value"] = scaler.fit_transform(df_pd[["operation_value"]])
 
-# Graficar con Matplotlib
-fig, ax = plt.subplots(figsize=(12, 5))
-ax.bar(df_grouped["user_id"], df_grouped["operation_value"], color="skyblue")
-ax.set_xlabel("User ID")
-ax.set_ylabel("Normalized Operation Value")
-ax.set_title("Valor Normalizado de Operaciones por Usuario")
-ax.tick_params(axis='x', rotation=90)  # Rotar etiquetas para mejor visibilidad
+# Agrupar por user_id y calcular la media (si es necesario)
+df_grouped = df_pd.groupby("user_id", as_index=False).mean()
 
-# Mostrar en Streamlit
-st.pyplot(fig)
+st.subheader("Gráfico mejorado con Plotly")
+
+# Crear gráfico de dispersión
+fig = px.scatter(df_grouped, x="user_id", y="normalized_operation_value",
+                 title="Valor Normalizado de Operaciones por Usuario",
+                 labels={"user_id": "User ID", "normalized_operation_value": "Normalized Operation Value"})
+
+st.plotly_chart(fig)
