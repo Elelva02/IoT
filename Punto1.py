@@ -4,7 +4,7 @@ import plotly.express as px
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-st.title("Análisis de Operaciones y Calificación de Usuarios")
+st.title("Visualización de Ejemplo")
 
 # Cargar datos con Polars
 data = pl.read_excel('depositos_oinks.xlsx')
@@ -19,14 +19,6 @@ st.dataframe(df_pd.head(50))  # Muestra las primeras 50 filas
 
 # Convertir "operation_date" a formato datetime en Pandas
 df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors='coerce')
-
-# Verificar si "operation_value" es numérico y no tiene NaN
-if "operation_value" in df_pd.columns:
-    df_pd = df_pd[pd.to_numeric(df_pd["operation_value"], errors="coerce").notna()]
-    df_pd["operation_value"] = df_pd["operation_value"].astype(float)
-else:
-    st.error("No se encontró la columna 'operation_value'. No se puede continuar.")
-    st.stop()
 
 # Normalizar "operation_value"
 scaler = MinMaxScaler()
@@ -51,59 +43,30 @@ fig = px.line(df_grouped, x="operation_date", y="normalized_operation_value",
 
 st.plotly_chart(fig)
 
-# --- Calificación de Usuarios ---
-st.subheader("Calificación de Usuarios")
+# Calcular métricas de usuarios
+user_metrics = df_pd.groupby("user_id").agg(
+    transaction_count=("operation_value", "count"),
+    avg_transaction_value=("operation_value", "mean"),
+    max_transaction_value=("operation_value", "max"),
+    total_value=("operation_value", "sum")
+)
 
-# Verificar si la columna "user_id" existe
-if "user_id" in df_pd.columns:
-    df_pd = df_pd.dropna(subset=["user_id"])  # Eliminar usuarios nulos
-    df_pd["user_id"] = df_pd["user_id"].astype(str)  # Convertir a string
+# Normalizar valores
+scaler = MinMaxScaler()
+user_metrics_normalized = scaler.fit_transform(user_metrics)
+user_metrics["final_score"] = user_metrics_normalized.mean(axis=1)
 
-    # Cálculo de métricas por usuario
-    user_metrics = df_pd.groupby("user_id").agg(
-        frequency=("operation_value", "count"),  # Número de transacciones
-        avg_amount=("operation_value", "mean"),  # Monto promedio
-        std_dev=("operation_value", "std"),  # Variabilidad en el monto
-        activity_days=("operation_date", lambda x: (x.max() - x.min()).days),  # Días de actividad
-    ).fillna(0)  # Llenar NaN con 0
+# Mostrar solo los 20 mejores usuarios
+top_users = user_metrics.nlargest(20, "final_score")
 
-    # Normalizar las métricas
-    user_metrics[["frequency", "avg_amount", "std_dev", "activity_days"]] = scaler.fit_transform(
-        user_metrics[["frequency", "avg_amount", "std_dev", "activity_days"]]
-    )
-
-    # Pesos de las métricas
-    weights = {
-        "frequency": 0.3,
-        "avg_amount": 0.25,
-        "std_dev": 0.2,
-        "activity_days": 0.25,
-    }
-
-    # Calcular puntaje final
-    user_metrics["final_score"] = (
-        user_metrics["frequency"] * weights["frequency"] +
-        user_metrics["avg_amount"] * weights["avg_amount"] +
-        (1 - user_metrics["std_dev"]) * weights["std_dev"] +  # Menos variabilidad es mejor
-        user_metrics["activity_days"] * weights["activity_days"]
-    )
-
-    # Categorizar usuarios
-    def categorize(score):
-        if score >= 0.75:
-            return "Buen Usuario"
-        elif score >= 0.5:
-            return "Usuario Promedio"
-        else:
-            return "Usuario de Riesgo"
-
-    user_metrics["category"] = user_metrics["final_score"].apply(categorize)
-
-    # Mostrar tabla de métricas
-    st.dataframe(user_metrics)
-
-    # Mostrar distribución de puntajes
-    st.subheader("Distribución de Puntajes")
-    st.bar_chart(user_metrics["final_score"])
-else:
-    st.warning("No se encontró la columna 'user_id' en los datos. No se puede calcular la calificación de usuarios.")
+st.subheader("Top 20 Mejores Usuarios")
+fig_top = px.bar(
+    top_users,
+    x=top_users.index,
+    y="final_score",
+    title="Top 20 Usuarios con Mejor Puntaje",
+    labels={"x": "User ID", "final_score": "Puntaje Final"},
+    text_auto=True
+)
+fig_top.update_layout(xaxis_tickangle=-45)  # Rotar etiquetas para mejor visualización
+st.plotly_chart(fig_top)
