@@ -33,7 +33,9 @@ scaler = MinMaxScaler()
 df_pd["normalized_operation_value"] = scaler.fit_transform(df_pd[["operation_value"]])
 
 # Agrupar por fecha
-df_grouped = df_pd.groupby("operation_date", as_index=False)[["normalized_operation_value"]].mean()
+df_grouped = df_pd.groupby("operation_date", as_index=False).agg(
+    normalized_operation_value=("normalized_operation_value", "mean")
+)
 
 # Ordenar por fecha
 df_grouped = df_grouped.sort_values(by="operation_date")
@@ -55,16 +57,17 @@ st.plotly_chart(fig)
 st.subheader("Calificación de Usuarios")
 
 # Verificar si la columna "user_id" existe
-if "user_id" in df_pd.columns:
+df_pd["user_id"] = df_pd["user_id"].astype(str).fillna("Desconocido")
+
+if "user_id" in df_pd.columns and not df_pd["user_id"].isna().all():
     df_pd = df_pd.dropna(subset=["user_id"])  # Eliminar usuarios nulos
-    df_pd["user_id"] = df_pd["user_id"].astype(str)  # Convertir a string
 
     # Cálculo de métricas por usuario
-    user_metrics = df_pd.groupby("user_id").agg(
+    user_metrics = df_pd.groupby("user_id", as_index=False).agg(
         frequency=("operation_value", "count"),  # Número de transacciones
         avg_amount=("operation_value", "mean"),  # Monto promedio
         std_dev=("operation_value", "std"),  # Variabilidad en el monto
-        activity_days=("operation_date", lambda x: (x.max() - x.min()).days),  # Días de actividad
+        activity_days=("operation_date", lambda x: (x.max() - x.min()).days if len(x) > 1 else 0),  # Días de actividad
     ).fillna(0)  # Llenar NaN con 0
 
     # Normalizar las métricas
