@@ -17,13 +17,16 @@ df_pd = df.to_pandas()
 st.subheader("Vista previa de los datos originales")
 st.dataframe(df_pd.head(50))  # Muestra las primeras 50 filas
 
-# Convertir "operation_date" a formato datetime en Pandas
+# Convertir "operation_date" a formato datetime
 df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors='coerce')
 
-# Verificar si "operation_value" es numérico y no tiene NaN
+# Filtrar valores no válidos
+df_pd = df_pd.dropna(subset=["operation_date"])  # Eliminar fechas nulas
+
+# Asegurar que operation_value es numérico
 if "operation_value" in df_pd.columns:
-    df_pd = df_pd[pd.to_numeric(df_pd["operation_value"], errors="coerce").notna()]
-    df_pd["operation_value"] = df_pd["operation_value"].astype(float)
+    df_pd["operation_value"] = pd.to_numeric(df_pd["operation_value"], errors="coerce")
+    df_pd = df_pd.dropna(subset=["operation_value"])  # Eliminar NaN en operation_value
 else:
     st.error("No se encontró la columna 'operation_value'. No se puede continuar.")
     st.stop()
@@ -57,13 +60,11 @@ st.plotly_chart(fig)
 st.subheader("Calificación de Usuarios")
 
 # Verificar si la columna "user_id" existe
-df_pd["user_id"] = df_pd["user_id"].astype(str).fillna("Desconocido")
-
-if "user_id" in df_pd.columns and not df_pd["user_id"].isna().all():
-    df_pd = df_pd.dropna(subset=["user_id"])  # Eliminar usuarios nulos
+if "user_id" in df_pd.columns:
+    df_pd["user_id"] = df_pd["user_id"].astype(str)  # Convertir a string
 
     # Cálculo de métricas por usuario
-    user_metrics = df_pd.groupby("user_id", as_index=False).agg(
+    user_metrics = df_pd.groupby("user_id").agg(
         frequency=("operation_value", "count"),  # Número de transacciones
         avg_amount=("operation_value", "mean"),  # Monto promedio
         std_dev=("operation_value", "std"),  # Variabilidad en el monto
