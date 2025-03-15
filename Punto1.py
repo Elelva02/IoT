@@ -1,72 +1,33 @@
 import streamlit as st
-import polars as pl  
-import plotly.express as px
+import polars as pl
 import pandas as pd
+import plotly.express as px
 from sklearn.preprocessing import MinMaxScaler
 
-st.title("Visualización de Ejemplo")
+st.title("Tendencia de Operaciones por Fecha")
 
-# Cargar datos con Polars
-data = pl.read_excel('depositos_oinks.xlsx')
-df = pl.DataFrame(data)
+# Cargar el DataFrame desde el archivo Excel
+df = pl.read_excel('depositos_oinks.xlsx')
 
-# Convertir a Pandas
+# Convertir a pandas y asegurarse de que operation_date sea tipo fecha
 df_pd = df.to_pandas()
+df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors="coerce")
 
-# Convertir "operation_date" a formato datetime en Pandas
-df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors='coerce')
+# Agrupar por fecha y calcular la media de operation_value
+df_grouped = df_pd.groupby("operation_date", as_index=False)["operation_value"].mean()
 
-# Normalizar "operation_value"
-scaler = MinMaxScaler()
-df_pd["normalized_operation_value"] = scaler.fit_transform(df_pd[["operation_value"]])
+# Verificar si hay datos antes de normalizar
+if not df_grouped.empty:
+    # Normalizar los valores de operación
+    scaler = MinMaxScaler()
+    df_grouped["normalized_operation_value"] = scaler.fit_transform(df_grouped[["operation_value"]])
 
-# Agrupar por fecha
-df_grouped = df_pd.groupby("operation_date", as_index=False)[["normalized_operation_value"]].mean()
+    # Crear el gráfico con Plotly
+    fig = px.line(df_grouped, x="operation_date", y="normalized_operation_value",
+                  title="Tendencia Normalizada de Operaciones por Fecha",
+                  labels={"operation_date": "Fecha", "normalized_operation_value": "Valor Normalizado"})
 
-# Ordenar por fecha
-df_grouped = df_grouped.sort_values(by="operation_date")
-
-st.subheader("Gráfico de Tendencia por Fecha")
-
-# Crear gráfico de líneas
-fig = px.line(df_grouped, x="operation_date", y="normalized_operation_value",
-              title="Tendencia Normalizada de Operaciones por Fecha",
-              labels={"operation_date": "Fecha", "normalized_operation_value": "Valor Normalizado"})
-
-st.plotly_chart(fig)
-import streamlit as st
-import polars as pl  
-import plotly.express as px
-import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
-
-st.title("Visualización de Ejemplo")
-
-# Cargar datos con Polars
-data = pl.read_excel('depositos_oinks.xlsx')
-df = pl.DataFrame(data)
-
-# Convertir a Pandas
-df_pd = df.to_pandas()
-
-# Convertir "operation_date" a formato datetime en Pandas
-df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors='coerce')
-
-# Normalizar "operation_value"
-scaler = MinMaxScaler()
-df_pd["normalized_operation_value"] = scaler.fit_transform(df_pd[["operation_value"]])
-
-# Agrupar por fecha
-df_grouped = df_pd.groupby("operation_date", as_index=False)[["normalized_operation_value"]].mean()
-
-# Ordenar por fecha
-df_grouped = df_grouped.sort_values(by="operation_date")
-
-st.subheader("Gráfico de Tendencia por Fecha")
-
-# Crear gráfico de líneas
-fig = px.line(df_grouped, x="operation_date", y="normalized_operation_value",
-              title="Tendencia Normalizada de Operaciones por Fecha",
-              labels={"operation_date": "Fecha", "normalized_operation_value": "Valor Normalizado"})
-
-st.plotly_chart(fig)
+    # Mostrar el gráfico en Streamlit
+    st.plotly_chart(fig, use_container_width=True, key="tendencia_fecha")
+else:
+    st.warning("No hay datos disponibles para graficar.")
