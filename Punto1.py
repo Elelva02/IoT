@@ -24,9 +24,9 @@ df_pd = df.to_pandas()
 
 # Crear figura y eje
 fig, ax = plt.subplots()
-ax.plot(df_pd["Categoria"], df_pd["Valores"], marker="o", linestyle="-", color="b")
-ax.set_xlabel("Categoría")
-ax.set_ylabel("Valores")
+ax.plot(df_pd["user_id"], df_pd["operation_value"], marker="o", linestyle="-", color="b")
+ax.set_xlabel("user id")
+ax.set_ylabel("operation_value")
 ax.set_title("Gráfico de Líneas con Matplotlib")
 
 # Mostrar gráfico en Streamlit
@@ -35,7 +35,7 @@ st.pyplot(fig)
 st.subheader("Gráfico interactivo con Plotly")
 
 # Crear gráfico con Plotly (usando pandas para mayor compatibilidad)
-fig_plotly = px.bar(df_pd, x="Categoria", y="Valores", title="Gráfico de Barras con Plotly")
+fig_plotly = px.bar(df_pd, x="user id", y="peration_value", title="Gráfico de Barras con Plotly")
 
 # Mostrar gráfico en Streamlit
 st.plotly_chart(fig_plotly)
