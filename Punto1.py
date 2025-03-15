@@ -4,7 +4,7 @@ import plotly.express as px
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-st.title("Visualización de Ejemplo")
+st.title("Análisis de Operaciones y Calificación de Usuarios")
 
 # Cargar datos con Polars
 data = pl.read_excel('depositos_oinks.xlsx')
@@ -42,3 +42,57 @@ fig = px.line(df_grouped, x="operation_date", y="normalized_operation_value",
               labels={"operation_date": "Fecha", "normalized_operation_value": "Valor Normalizado"})
 
 st.plotly_chart(fig)
+
+# --- Calificación de Usuarios ---
+st.subheader("Calificación de Usuarios")
+
+# Verificar si la columna "user_id" está en los datos
+if "user_id" in df_pd.columns:
+    # Cálculo de métricas por usuario
+    user_metrics = df_pd.groupby("user_id").agg(
+        frequency=("operation_value", "count"),  # Número de transacciones
+        avg_amount=("operation_value", "mean"),  # Monto promedio
+        std_dev=("operation_value", "std"),  # Variabilidad en el monto
+        activity_days=("operation_date", lambda x: (x.max() - x.min()).days),  # Días de actividad
+    ).fillna(0)  # Llenar NaN con 0
+
+    # Normalizar las métricas
+    user_metrics[["frequency", "avg_amount", "std_dev", "activity_days"]] = scaler.fit_transform(
+        user_metrics[["frequency", "avg_amount", "std_dev", "activity_days"]]
+    )
+
+    # Pesos de las métricas
+    weights = {
+        "frequency": 0.3,
+        "avg_amount": 0.25,
+        "std_dev": 0.2,
+        "activity_days": 0.25,
+    }
+
+    # Calcular puntaje final
+    user_metrics["final_score"] = (
+        user_metrics["frequency"] * weights["frequency"] +
+        user_metrics["avg_amount"] * weights["avg_amount"] +
+        (1 - user_metrics["std_dev"]) * weights["std_dev"] +  # Menos variabilidad es mejor
+        user_metrics["activity_days"] * weights["activity_days"]
+    )
+
+    # Categorizar usuarios
+    def categorize(score):
+        if score >= 0.75:
+            return "Buen Usuario"
+        elif score >= 0.5:
+            return "Usuario Promedio"
+        else:
+            return "Usuario de Riesgo"
+
+    user_metrics["category"] = user_metrics["final_score"].apply(categorize)
+
+    # Mostrar tabla de métricas
+    st.dataframe(user_metrics)
+
+    # Mostrar distribución de puntajes
+    st.subheader("Distribución de Puntajes")
+    st.bar_chart(user_metrics["final_score"])
+else:
+    st.warning("No se encontró la columna 'user_id' en los datos. No se puede calcular la calificación de usuarios.")
