@@ -28,7 +28,7 @@ else:
     st.error("No se encontró la columna 'operation_value'. No se puede continuar.")
     st.stop()
 
-# Normalizar "operation_value"
+# Normalizar "operation_value" para análisis temporal
 scaler = MinMaxScaler()
 df_pd["normalized_operation_value"] = scaler.fit_transform(df_pd[["operation_value"]])
 
@@ -59,18 +59,13 @@ if "user_id" in df_pd.columns:
     df_pd = df_pd.dropna(subset=["user_id"])  # Eliminar usuarios nulos
     df_pd["user_id"] = df_pd["user_id"].astype(str)  # Convertir a string
 
-    # Cálculo de métricas por usuario
+    # Cálculo de métricas por usuario (sin normalizar)
     user_metrics = df_pd.groupby("user_id").agg(
         frequency=("operation_value", "count"),  # Número de transacciones
         avg_amount=("operation_value", "mean"),  # Monto promedio
         std_dev=("operation_value", "std"),  # Variabilidad en el monto
         activity_days=("operation_date", lambda x: (x.max() - x.min()).days),  # Días de actividad
     ).fillna(0)  # Llenar NaN con 0
-
-    # Normalizar las métricas
-    user_metrics[["frequency", "avg_amount", "std_dev", "activity_days"]] = scaler.fit_transform(
-        user_metrics[["frequency", "avg_amount", "std_dev", "activity_days"]]
-    )
 
     # Pesos de las métricas
     weights = {
@@ -80,7 +75,7 @@ if "user_id" in df_pd.columns:
         "activity_days": 0.25,
     }
 
-    # Calcular puntaje final
+    # Calcular puntaje final sin normalización
     user_metrics["final_score"] = (
         user_metrics["frequency"] * weights["frequency"] +
         user_metrics["avg_amount"] * weights["avg_amount"] +
@@ -88,11 +83,11 @@ if "user_id" in df_pd.columns:
         user_metrics["activity_days"] * weights["activity_days"]
     )
 
-    # Categorizar usuarios
+    # Categorizar usuarios con nuevos umbrales (ajustados según los datos sin normalizar)
     def categorize(score):
-        if score >= 0.75:
+        if score >= user_metrics["final_score"].quantile(0.75):
             return "Buen Usuario"
-        elif score >= 0.5:
+        elif score >= user_metrics["final_score"].quantile(0.5):
             return "Usuario Promedio"
         else:
             return "Usuario de Riesgo"
