@@ -15,7 +15,9 @@ df_pd = df.to_pandas()
 
 # Mostrar la tabla original
 st.subheader("Vista previa de los datos originales")
-st.dataframe(df_pd.head(50))  # Muestra las primeras 50 filas
+st.dataframe(data.head(50))  # Muestra las primeras 50 filas
+
+
 
 # Convertir "operation_date" a formato datetime en Pandas
 df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors='coerce')
