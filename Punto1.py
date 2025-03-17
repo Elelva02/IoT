@@ -8,6 +8,11 @@ try:
 except Exception as e:
     st.error(f"Error al cargar el archivo: {e}")
     st.stop()
+    
+# Convertir operation_value a Float64
+df = df.with_columns(
+    pl.col("operation_value").cast(pl.Float64, strict=False)
+)
 
 # Verificar que la columna operation_date existe
 if 'operation_date' not in df.columns:
