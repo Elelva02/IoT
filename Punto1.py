@@ -10,6 +10,11 @@ st.title("Usuarios con Más Depósitos")
 df = pl.read_excel('depositos_oinks.xlsx')
 
 st.write("Valores únicos en operation_value:", df["operation_value"].unique())
+# Corregir el tipo de dato de la columna operation_value
+df = df.with_columns(
+    pl.col("operation_value").cast(pl.Float64, strict=False)
+    )
+
 
 # Agrupar por user_id y sumar operation_value
 usuarios_depositos = df.group_by("user_id").agg(
