@@ -20,12 +20,12 @@ st.dataframe(data.head(50))  # Muestra las primeras 50 filas
 
 
 # Convertir "operation_date" a formato datetime en Pandas
-df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors='coerce')
+data["operation_date"] = pd.to_datetime(data["operation_date"], errors='coerce')
 
 # Verificar si "operation_value" es numérico y no tiene NaN
-if "operation_value" in df_pd.columns:
-    df_pd = df_pd[pd.to_numeric(df_pd["operation_value"], errors="coerce").notna()]
-    df_pd["operation_value"] = df_pd["operation_value"].astype(float)
+if "operation_value" in data.columns:
+    data_2 = data[pd.to_numeric(data["operation_value"], errors="coerce").notna()]
+    data_2["operation_value"] = data_2["operation_value"].astype(float)
 else:
     st.error("No se encontró la columna 'operation_value'. No se puede continuar.")
     st.stop()
