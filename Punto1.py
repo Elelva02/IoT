@@ -7,13 +7,22 @@ st.set_page_config(page_title="Análisis de Depósitos y Consignaciones", layout
 st.title("Análisis de Depósitos y Consignaciones")
 
 # Cargar datos con Polars
-df = pl.read_excel('depositos_oinks.xlsx')
-
+try:
+    df = pl.read_excel('depositos_oinks.xlsx')
+except Exception as e:
+    st.error(f"Error al cargar el archivo: {e}")
+    st.stop()
 
 # Verificar y corregir el tipo de dato de operation_value
+st.write("Valores únicos en operation_value:", df["operation_value"].unique())
 df = df.with_columns(
     pl.col("operation_value").cast(pl.Float64, strict=False).fill_null(0)
 )
+
+# Verificar que la columna operation_date existe
+if 'operation_date' not in df.columns:
+    st.error("La columna 'operation_date' no existe en el archivo.")
+    st.stop()
 
 # Convertir operation_date a tipo fecha (si no lo está)
 df = df.with_columns(
@@ -68,7 +77,7 @@ st.dataframe(df_agrupado)
 
 # Crear histograma con Plotly
 fig_consignaciones = px.bar(
-    df_agrupado,
+    df_agrupado.to_pandas(),  # Convertir a Pandas para Plotly
     x="operation_date",
     y="total_consignaciones",
     title=titulo_grafico,
@@ -95,7 +104,7 @@ st.dataframe(usuarios_depositos)
 
 # Gráfico de barras: Top usuarios con más depósitos
 fig_usuarios = px.bar(
-    usuarios_depositos,
+    usuarios_depositos.to_pandas(),  # Convertir a Pandas para Plotly
     x="user_id",
     y="total_depositos",
     title="Top Usuarios con Más Depósitos",
@@ -115,7 +124,7 @@ st.dataframe(top_usuarios)
 
 # Gráfico de barras para el top N de usuarios
 fig_top_n = px.bar(
-    top_usuarios,
+    top_usuarios.to_pandas(),  # Convertir a Pandas para Plotly
     x="user_id",
     y="total_depositos",
     title=f"Top {top_n} Usuarios con Más Depósitos",
