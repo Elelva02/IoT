@@ -13,8 +13,7 @@ except Exception as e:
     st.error(f"Error al cargar el archivo: {e}")
     st.stop()
 
-# Verificar y corregir el tipo de dato de operation_value
-st.write("Valores únicos en operation_value:", df["operation_value"].unique())
+# Transformar operation value a float
 df = df.with_columns(
     pl.col("operation_value").cast(pl.Float64, strict=False).fill_null(0)
 )
