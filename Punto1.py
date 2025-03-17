@@ -11,8 +11,8 @@ df = pl.read_excel('depositos_oinks.xlsx')
 # Convertir operation_value a numérico
 df = df.with_columns(pl.col("operation_value").cast(pl.Float64))
 
-# Asegurar que operation_date solo tenga la fecha (sin horas)
-df = df.with_columns(pl.col("operation_date").dt.truncate("1d"))
+# Convertir operation_date a tipo Date (sin horas)
+df = df.with_columns(pl.col("operation_date").cast(pl.Date))
 
 # Normalizar "operation_value"
 scaler = MinMaxScaler()
@@ -22,7 +22,7 @@ df = df.with_columns(
 
 # Agrupar por fecha
 df_grouped = df.groupby("operation_date").agg(
-    pl.mean("normalized_operation_value").alias("avg_normalized_value")
+    pl.col("normalized_operation_value").mean().alias("avg_normalized_value")
 )
 
 # Mostrar datos agrupados
