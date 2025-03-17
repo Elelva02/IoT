@@ -7,11 +7,7 @@ st.set_page_config(page_title="Análisis de Depósitos y Consignaciones", layout
 st.title("Análisis de Depósitos y Consignaciones")
 
 # Cargar datos con Polars
-try:
-    df = pl.read_excel('depositos_oinks.xlsx')
-except Exception as e:
-    st.error(f"Error al cargar el archivo: {e}")
-    st.stop()
+df = pl.read_excel('depositos_oinks.xlsx')
 
 # Transformar operation value a float
 df = df.with_columns(
@@ -69,6 +65,9 @@ else:  # Año
         pl.col("operation_value").sum().alias("total_consignaciones")
     ).sort("operation_date")
     titulo_grafico = "Consignaciones por Año"
+
+st.write("En la sección de Consignaciones de la aplicación Streamlit, el usuario puede interactuar con diferentes herramientas para visualizar y analizar los datos de consignaciones de manera clara y sencilla. Al ingresar a esta sección, el usuario encuentra en la barra lateral un filtro de rango de fechas que le permite seleccionar un periodo específico para el análisis. De manera predeterminada, el rango de fechas incluye todas las fechas disponibles en los datos, pero el usuario puede ajustarlo según sus necesidades. Dentro de la misma barra lateral, también se encuentra la opción de agrupar las consignaciones por día, mes o año. Dependiendo de la selección realizada, los datos se organizarán en diferentes niveles de detalle, permitiendo al usuario visualizar la información de manera más granular o resumida según lo requiera. Una vez definidos los filtros, en la sección principal de la aplicación se muestra una tabla con las consignaciones agrupadas según el periodo seleccionado. La tabla está compuesta por dos columnas: una que indica la fecha o periodo correspondiente (día, mes o año) y otra que muestra el total de consignaciones sumadas para ese periodo. Acompañando la tabla, se presenta un gráfico de barras interactivo que permite visualizar las consignaciones de manera más intuitiva. En el eje X del gráfico se encuentra la fecha o periodo seleccionado, mientras que en el eje Y se representa el total de consignaciones. Cada barra indica el total de consignaciones en un periodo específico, y al interactuar con el gráfico, el usuario puede ver detalles específicos como los valores exactos de cada consignación. El flujo de interacción del usuario en esta sección es sencillo y eficiente. Al abrir la aplicación, el usuario accede a la sección de Consignaciones y selecciona el rango de fechas deseado. Luego, elige el nivel de agrupación adecuado (día, mes o año). Inmediatamente, la aplicación actualiza la tabla con los datos filtrados y genera el gráfico correspondiente. Si el usuario desea realizar un análisis más detallado, puede modificar los filtros en cualquier momento y la aplicación actualizará la información de forma dinámica. Además, la interactividad del gráfico permite explorar los datos de una manera más visual y comprensible, facilitando la toma de decisiones basada en los patrones observados. En la interfaz, la barra lateral contiene las opciones de selección de rango de fechas y agrupación. La sección principal muestra primero la tabla con los datos y luego el gráfico de barras interactivo. Esta distribución permite que el usuario pueda analizar la información de manera estructurada, primero observando los valores en la tabla y luego validando las tendencias mediante la representación visual del gráfico."
+)
 
 # Mostrar datos agrupados
 st.subheader(f"{titulo_grafico}")
