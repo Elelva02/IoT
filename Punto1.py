@@ -1,21 +1,23 @@
 import streamlit as st
 import polars as pl  
 import plotly.express as px
-from sklearn.preprocessing import MinMaxScaler
 
 st.title("Análisis de Operaciones y Calificación de Usuarios")
 
 # Cargar datos con Polars
 df = pl.read_excel('depositos_oinks.xlsx')
 
-# Mostrar tabla original
-st.subheader("Vista previa de los datos originales")
-st.dataframe(df.head(50))
+# Asegurar que operation_date sea de tipo string antes de convertir a fecha
+df = df.with_columns(pl.col("operation_date").cast(pl.Utf8))
 
 # Convertir "operation_date" a formato datetime
 df = df.with_columns(pl.col("operation_date").str.to_date("%Y-%m-%d"))
 
-# Verificar si "operation_value" es numérico y limpiar NaN
+# Mostrar tabla original
+st.subheader("Vista previa de los datos originales")
+st.dataframe(df.head(50))
+
+# Verificar si "operation_value" es numérico
 if "operation_value" in df.columns:
     df = df.with_columns(
         pl.when(pl.col("operation_value").cast(pl.Float64, strict=False).is_not_null())
