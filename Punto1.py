@@ -98,21 +98,26 @@ usuarios_depositos = df_filtrado.group_by("user_id").agg(
     pl.col("operation_value").sum().alias("total_depositos")
 ).sort("total_depositos", descending=True)
 
-# Mostrar los usuarios con más depósitos
-st.subheader("Top Usuarios con Más Depósitos")
-st.dataframe(usuarios_depositos)
+# Filtrar usuarios con total_depositos mayor a 1,000,000
+usuarios_depositos_filtrados = usuarios_depositos.filter(
+    pl.col("total_depositos") > 1_000_000
+)
 
-# Gráfico de barras: Top usuarios con más depósitos
-fig_usuarios = px.bar(
-    usuarios_depositos.to_pandas(),  # Convertir a Pandas para Plotly
+# Mostrar los usuarios con más depósitos (filtrados)
+st.subheader("Top Usuarios con Más Depósitos (Mayores a 1,000,000)")
+st.dataframe(usuarios_depositos_filtrados)
+
+# Gráfico de barras: Top usuarios con más depósitos (filtrados)
+fig_usuarios_filtrados = px.bar(
+    usuarios_depositos_filtrados.to_pandas(),  # Convertir a Pandas para Plotly
     x="user_id",
     y="total_depositos",
-    title="Top Usuarios con Más Depósitos",
+    title="Top Usuarios con Más Depósitos (Mayores a 1,000,000)",
     labels={"user_id": "Usuario", "total_depositos": "Total de Depósitos"},
     text="total_depositos"
 )
-fig_usuarios.update_traces(textposition='outside')
-st.plotly_chart(fig_usuarios, use_container_width=True)
+fig_usuarios_filtrados.update_traces(textposition='outside')
+st.plotly_chart(fig_usuarios_filtrados, use_container_width=True)
 
 # Filtro para mostrar el top N de usuarios
 top_n = st.slider("Selecciona el número de usuarios top a mostrar", min_value=5, max_value=50, value=10)
