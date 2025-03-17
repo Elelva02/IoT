@@ -9,6 +9,8 @@ st.title("Usuarios con Más Depósitos")
 # Cargar datos con Polars
 df = pl.read_excel('depositos_oinks.xlsx')
 
+st.write("Valores únicos en operation_value:", df["operation_value"].unique())
+
 # Agrupar por user_id y sumar operation_value
 usuarios_depositos = df.group_by("user_id").agg(
     pl.col("operation_value").sum().alias("total_depositos")
