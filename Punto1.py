@@ -1,100 +1,93 @@
 import streamlit as st
 import polars as pl  
 import plotly.express as px
-import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
 st.title("Análisis de Operaciones y Calificación de Usuarios")
 
 # Cargar datos con Polars
-data = pl.read_excel('depositos_oinks.xlsx')
-df = pl.DataFrame(data)
+df = pl.read_excel('depositos_oinks.xlsx')
 
-# Convertir a Pandas
-df_pd = df.to_pandas()
-
-# Mostrar la tabla original
+# Mostrar tabla original
 st.subheader("Vista previa de los datos originales")
-st.dataframe(df_pd.head(50))  # Muestra las primeras 50 filas
+st.dataframe(df.head(50))
 
-# Convertir "operation_date" a formato datetime en Pandas
-df_pd["operation_date"] = pd.to_datetime(df_pd["operation_date"], errors='coerce')
+# Convertir "operation_date" a formato datetime
+df = df.with_columns(pl.col("operation_date").str.to_date("%Y-%m-%d"))
 
-# Verificar si "operation_value" es numérico y no tiene NaN
-if "operation_value" in df_pd.columns:
-    df_pd = df_pd[pd.to_numeric(df_pd["operation_value"], errors="coerce").notna()]
-    df_pd["operation_value"] = df_pd["operation_value"].astype(float)
+# Verificar si "operation_value" es numérico y limpiar NaN
+if "operation_value" in df.columns:
+    df = df.with_columns(
+        pl.when(pl.col("operation_value").cast(pl.Float64, strict=False).is_not_null())
+        .then(pl.col("operation_value").cast(pl.Float64))
+        .otherwise(None)  # Si no es numérico, se convierte en NULL
+    ).drop_nulls()  # Elimina filas con valores no numéricos en "operation_value"
 else:
     st.error("No se encontró la columna 'operation_value'. No se puede continuar.")
     st.stop()
 
-# Normalizar "operation_value" para análisis temporal
-scaler = MinMaxScaler()
-df_pd["normalized_operation_value"] = scaler.fit_transform(df_pd[["operation_value"]])
+# Normalizar "operation_value"
+min_val, max_val = df["operation_value"].min(), df["operation_value"].max()
+df = df.with_columns(
+    ((pl.col("operation_value") - min_val) / (max_val - min_val)).alias("normalized_operation_value")
+)
 
-# Agrupar por fecha
-df_grouped = df_pd.groupby("operation_date", as_index=False)[["normalized_operation_value"]].mean()
+# Agrupar por fecha y calcular promedio
+df_grouped = df.groupby("operation_date").agg(
+    pl.col("normalized_operation_value").mean()
+).sort("operation_date")
 
-# Ordenar por fecha
-df_grouped = df_grouped.sort_values(by="operation_date")
-
-# Mostrar la tabla agrupada
+# Mostrar datos normalizados
 st.subheader("Datos Agrupados y Normalizados")
 st.dataframe(df_grouped)
 
+# Crear gráfico de tendencia por fecha
 st.subheader("Gráfico de Tendencia por Fecha")
-
-# Crear gráfico de líneas
-fig = px.line(df_grouped, x="operation_date", y="normalized_operation_value",
+fig = px.line(df_grouped.to_pandas(), x="operation_date", y="normalized_operation_value",
               title="Tendencia Normalizada de Operaciones por Fecha",
               labels={"operation_date": "Fecha", "normalized_operation_value": "Valor Normalizado"})
-
 st.plotly_chart(fig)
 
 # --- Calificación de Usuarios ---
 st.subheader("Calificación de Usuarios")
 
-# Verificar si la columna "user_id" existe
-if "user_id" in df_pd.columns:
-    df_pd = df_pd.dropna(subset=["user_id"])  # Eliminar usuarios nulos
-    df_pd["user_id"] = df_pd["user_id"].astype(str)  # Convertir a string
+if "user_id" in df.columns:
+    df = df.with_columns(pl.col("user_id").cast(pl.Utf8)).drop_nulls(subset=["user_id"])
 
-    # Cálculo de métricas por usuario (sin normalizar)
-    user_metrics = df_pd.groupby("user_id").agg(
-        frequency=("operation_value", "count"),  # Número de transacciones
-        avg_amount=("operation_value", "mean"),  # Monto promedio
-        std_dev=("operation_value", "std"),  # Variabilidad en el monto
-        activity_days=("operation_date", lambda x: (x.max() - x.min()).days),  # Días de actividad
-    ).fillna(0)  # Llenar NaN con 0
+    # Calcular métricas por usuario
+    user_metrics = df.groupby("user_id").agg([
+        pl.count("operation_value").alias("frequency"),
+        pl.col("operation_value").mean().alias("avg_amount"),
+        pl.col("operation_value").std().alias("std_dev"),
+        (pl.col("operation_date").max() - pl.col("operation_date").min()).dt.days().alias("activity_days"),
+    ]).fill_null(0)  # Reemplazar NaN con 0
 
     # Pesos de las métricas
-    weights = {
-        "frequency": 0.3,
-        "avg_amount": 0.25,
-        "std_dev": 0.2,
-        "activity_days": 0.25,
-    }
+    weights = {"frequency": 0.3, "avg_amount": 0.25, "std_dev": 0.2, "activity_days": 0.25}
 
-    # Calcular puntaje final sin normalización
-    user_metrics["final_score"] = (
-        user_metrics["frequency"] * weights["frequency"] +
-        user_metrics["avg_amount"] * weights["avg_amount"] +
-        (1 - user_metrics["std_dev"]) * weights["std_dev"] +  # Menos variabilidad es mejor
-        user_metrics["activity_days"] * weights["activity_days"]
+    # Calcular puntaje final
+    user_metrics = user_metrics.with_columns(
+        (
+            user_metrics["frequency"] * weights["frequency"]
+            + user_metrics["avg_amount"] * weights["avg_amount"]
+            + (1 - user_metrics["std_dev"]) * weights["std_dev"]  # Menos variabilidad es mejor
+            + user_metrics["activity_days"] * weights["activity_days"]
+        ).alias("final_score")
     )
 
-    # Categorizar usuarios con nuevos umbrales (ajustados según los datos sin normalizar)
-    def categorize(score):
-        if score >= user_metrics["final_score"].quantile(0.75):
-            return "Buen Usuario"
-        elif score >= user_metrics["final_score"].quantile(0.5):
-            return "Usuario Promedio"
-        else:
-            return "Usuario de Riesgo"
+    # Definir categorías basadas en cuantiles
+    q75, q50 = user_metrics["final_score"].quantile(0.75), user_metrics["final_score"].quantile(0.5)
 
-    user_metrics["category"] = user_metrics["final_score"].apply(categorize)
+    user_metrics = user_metrics.with_columns(
+        pl.when(pl.col("final_score") >= q75)
+        .then("Buen Usuario")
+        .when(pl.col("final_score") >= q50)
+        .then("Usuario Promedio")
+        .otherwise("Usuario de Riesgo")
+        .alias("category")
+    )
 
-    # Mostrar tabla de métricas
+    # Mostrar tabla de usuarios
     st.dataframe(user_metrics)
 
     # Mostrar distribución de puntajes
