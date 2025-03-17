@@ -1,35 +1,61 @@
 import streamlit as st
-import polars as pl  
+import polars as pl
 import plotly.express as px
 
-st.set_page_config(page_title="Ranking de Usuarios", layout="wide")
+# Configuración de la página
+st.set_page_config(page_title="Usuarios con Más Depósitos", layout="wide")
+st.title("Usuarios con Más Depósitos")
 
-st.title("🏆 Mejores Usuarios por Monto Depositado")
+# Cargar datos con Polars
+try:
+    df = pl.read_excel('depositos_oinks.xlsx')
+except Exception as e:
+    st.error(f"Error al cargar el archivo: {e}")
+    st.stop()
 
-# Leer el archivo directamente (asegúrate de tener el archivo en el mismo directorio)
-df = pl.read_excel('depositos_oinks.xlsx')
+# Verificar que la columna 'operation_value' existe
+if 'operation_value' not in df.columns:
+    st.error("La columna 'operation_value' no existe en el archivo.")
+    st.stop()
 
-# Agrupar por user_id y sumar los montos depositados
-ranking_df = df.groupby("user_id").agg([
-    pl.col("operation_value").sum().alias("total_depositado"),
-    pl.count().alias("cantidad_operaciones")
-]).sort("total_depositado", descending=True)
+# Agrupar por user_id y sumar operation_value
+usuarios_depositos = df.group_by("user_id").agg(
+    pl.col("operation_value").sum().alias("total_depositos")
+).sort("total_depositos", descending=True)
 
-# Mostrar el ranking en tabla
-st.subheader("Top 10 Usuarios que Más Han Depositado")
-st.dataframe(ranking_df.head(10))
+# Mostrar los usuarios con más depósitos
+st.subheader("Top Usuarios con Más Depósitos")
+st.dataframe(usuarios_depositos)
 
-# Gráfico de barras para los 10 mejores usuarios
-top_usuarios = ranking_df.head(10).to_pandas()
-
-fig = px.bar(top_usuarios,
-             x="user_id",
-             y="total_depositado",
-             title="Top 10 Usuarios por Total Depositado",
-             labels={"user_id": "Usuario", "total_depositado": "Monto Total"},
-             text="total_depositado")
-
-fig.update_traces(texttemplate='%{text:.2s}', textposition='outside')
-fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide')
-
+# Gráfico de barras: Top usuarios con más depósitos
+st.subheader("Gráfico de Usuarios con Más Depósitos")
+fig = px.bar(
+    usuarios_depositos,
+    x="user_id",
+    y="total_depositos",
+    title="Top Usuarios con Más Depósitos",
+    labels={"user_id": "Usuario", "total_depositos": "Total de Depósitos"},
+    text="total_depositos"
+)
+fig.update_traces(textposition='outside')
 st.plotly_chart(fig, use_container_width=True)
+
+# Filtro para mostrar el top N de usuarios
+top_n = st.slider("Selecciona el número de usuarios top a mostrar", min_value=5, max_value=50, value=10)
+
+# Mostrar el top N de usuarios
+st.subheader(f"Top {top_n} Usuarios con Más Depósitos")
+top_usuarios = usuarios_depositos.head(top_n)
+st.dataframe(top_usuarios)
+
+# Gráfico de barras para el top N de usuarios
+fig_top_n = px.bar(
+    top_usuarios,
+    x="user_id",
+    y="total_depositos",
+    title=f"Top {top_n} Usuarios con Más Depósitos",
+    labels={"user_id": "Usuario", "total_depositos": "Total de Depósitos"},
+    text="total_depositos"
+)
+fig_top_n.update_traces(textposition='outside')
+st.plotly_chart(fig_top_n, use_container_width=True)
