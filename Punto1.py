@@ -7,22 +7,13 @@ st.set_page_config(page_title="Análisis de Depósitos y Consignaciones", layout
 st.title("Análisis de Depósitos y Consignaciones")
 
 # Cargar datos con Polars
-try:
-    df = pl.read_excel('depositos_oinks.xlsx')
-except Exception as e:
-    st.error(f"Error al cargar el archivo: {e}")
-    st.stop()
+df = pl.read_excel('depositos_oinks.xlsx')
+
 
 # Verificar y corregir el tipo de dato de operation_value
-st.write("Valores únicos en operation_value:", df["operation_value"].unique())
 df = df.with_columns(
     pl.col("operation_value").cast(pl.Float64, strict=False).fill_null(0)
 )
-
-# Verificar que la columna operation_date existe
-if 'operation_date' not in df.columns:
-    st.error("La columna 'operation_date' no existe en el archivo.")
-    st.stop()
 
 # Convertir operation_date a tipo fecha (si no lo está)
 df = df.with_columns(
