@@ -7,16 +7,7 @@ st.set_page_config(page_title="Usuarios con Más Depósitos", layout="wide")
 st.title("Usuarios con Más Depósitos")
 
 # Cargar datos con Polars
-try:
-    df = pl.read_excel('depositos_oinks.xlsx')
-except Exception as e:
-    st.error(f"Error al cargar el archivo: {e}")
-    st.stop()
-
-# Verificar que la columna 'operation_value' existe
-if 'operation_value' not in df.columns:
-    st.error("La columna 'operation_value' no existe en el archivo.")
-    st.stop()
+df = pl.read_excel('depositos_oinks.xlsx')
 
 # Agrupar por user_id y sumar operation_value
 usuarios_depositos = df.group_by("user_id").agg(
