@@ -10,9 +10,6 @@ st.title("Análisis de Operaciones y Calificación de Usuarios")
 data = pl.read_excel('depositos_oinks.xlsx')
 df = pl.DataFrame(data)
 
-# Convertir a Pandas
-df_pd = df.to_pandas()
-
 # Mostrar la tabla original
 st.subheader("Vista previa de los datos originales")
 st.dataframe(data.head(50))  # Muestra las primeras 50 filas
@@ -24,18 +21,18 @@ data["operation_date"] = pd.to_datetime(data["operation_date"], errors='coerce')
 
 # Verificar si "operation_value" es numérico y no tiene NaN
 if "operation_value" in data.columns:
-    data_2 = data[pd.to_numeric(data["operation_value"], errors="coerce").notna()]
-    data_2["operation_value"] = data_2["operation_value"].astype(float)
+    data= data[pd.to_numeric(data["operation_value"], errors="coerce").notna()]
+    data["operation_value"] = data["operation_value"].astype(float)
 else:
     st.error("No se encontró la columna 'operation_value'. No se puede continuar.")
     st.stop()
 
 # Normalizar "operation_value" para análisis temporal
 scaler = MinMaxScaler()
-df_pd["normalized_operation_value"] = scaler.fit_transform(df_pd[["operation_value"]])
+data["normalized_operation_value"] = scaler.fit_transform(data[["operation_value"]])
 
 # Agrupar por fecha
-df_grouped = df_pd.groupby("operation_date", as_index=False)[["normalized_operation_value"]].mean()
+df_grouped = data.groupby("operation_date", as_index=False)[["normalized_operation_value"]].mean()
 
 # Ordenar por fecha
 df_grouped = df_grouped.sort_values(by="operation_date")
@@ -57,12 +54,12 @@ st.plotly_chart(fig)
 st.subheader("Calificación de Usuarios")
 
 # Verificar si la columna "user_id" existe
-if "user_id" in df_pd.columns:
-    df_pd = df_pd.dropna(subset=["user_id"])  # Eliminar usuarios nulos
-    df_pd["user_id"] = df_pd["user_id"].astype(str)  # Convertir a string
+if "user_id" in data.columns:
+    data = data.dropna(subset=["user_id"])  # Eliminar usuarios nulos
+    data["user_id"] = data["user_id"].astype(str)  # Convertir a string
 
     # Cálculo de métricas por usuario (sin normalizar)
-    user_metrics = df_pd.groupby("user_id").agg(
+    user_metrics = data.groupby("user_id").agg(
         frequency=("operation_value", "count"),  # Número de transacciones
         avg_amount=("operation_value", "mean"),  # Monto promedio
         std_dev=("operation_value", "std"),  # Variabilidad en el monto
