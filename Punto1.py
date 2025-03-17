@@ -2,58 +2,75 @@ import streamlit as st
 import polars as pl
 import plotly.express as px
 
-# Configuración de la página
-st.set_page_config(page_title="Usuarios con Más Depósitos", layout="wide")
-st.title("Usuarios con Más Depósitos")
-
 # Cargar datos con Polars
-df = pl.read_excel('depositos_oinks.xlsx')
+try:
+    df = pl.read_excel('depositos_oinks.xlsx')
+except Exception as e:
+    st.error(f"Error al cargar el archivo: {e}")
+    st.stop()
 
-st.write("Valores únicos en operation_value:", df["operation_value"].unique())
-# Corregir el tipo de dato de la columna operation_value
+# Verificar que la columna operation_date existe
+if 'operation_date' not in df.columns:
+    st.error("La columna 'operation_date' no existe en el archivo.")
+    st.stop()
+
+# Convertir operation_date a tipo fecha (si no lo está)
 df = df.with_columns(
-    pl.col("operation_value").cast(pl.Float64, strict=False)
-    )
+    pl.col("operation_date").cast(pl.Date)
+)
 
+# Agregar filtro de rango de fechas
+st.sidebar.header("Filtros")
+min_date = df["operation_date"].min()
+max_date = df["operation_date"].max()
+date_range = st.sidebar.date_input(
+    "Selecciona el rango de fechas",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date
+)
 
-# Agrupar por user_id y sumar operation_value
-usuarios_depositos = df.group_by("user_id").agg(
-    pl.col("operation_value").sum().alias("total_depositos")
-).sort("total_depositos", descending=True)
+# Filtrar datos por el rango de fechas seleccionado
+df_filtrado = df.filter(
+    (pl.col("operation_date") >= date_range[0]) &
+    (pl.col("operation_date") <= date_range[1])
+)
 
-# Mostrar los usuarios con más depósitos
-st.subheader("Top Usuarios con Más Depósitos")
-st.dataframe(usuarios_depositos)
+# Agrupar consignaciones por día, mes o año
+st.sidebar.subheader("Agrupar por")
+agrupar_por = st.sidebar.radio(
+    "Selecciona el período",
+    ["Día", "Mes", "Año"]
+)
 
-# Gráfico de barras: Top usuarios con más depósitos
-st.subheader("Gráfico de Usuarios con Más Depósitos")
+if agrupar_por == "Día":
+    df_agrupado = df_filtrado.group_by(pl.col("operation_date")).agg(
+        pl.col("operation_value").sum().alias("total_consignaciones")
+    ).sort("operation_date")
+    titulo_grafico = "Consignaciones por Día"
+elif agrupar_por == "Mes":
+    df_agrupado = df_filtrado.group_by(pl.col("operation_date").dt.strftime("%Y-%m")).agg(
+        pl.col("operation_value").sum().alias("total_consignaciones")
+    ).sort("operation_date")
+    titulo_grafico = "Consignaciones por Mes"
+else:  # Año
+    df_agrupado = df_filtrado.group_by(pl.col("operation_date").dt.strftime("%Y")).agg(
+        pl.col("operation_value").sum().alias("total_consignaciones")
+    ).sort("operation_date")
+    titulo_grafico = "Consignaciones por Año"
+
+# Mostrar datos agrupados
+st.subheader(f"{titulo_grafico}")
+st.dataframe(df_agrupado)
+
+# Crear histograma con Plotly
 fig = px.bar(
-    usuarios_depositos,
-    x="user_id",
-    y="total_depositos",
-    title="Top Usuarios con Más Depósitos",
-    labels={"user_id": "Usuario", "total_depositos": "Total de Depósitos"},
-    text="total_depositos"
+    df_agrupado,
+    x="operation_date",
+    y="total_consignaciones",
+    title=titulo_grafico,
+    labels={"operation_date": "Fecha", "total_consignaciones": "Total de Consignaciones"},
+    text="total_consignaciones"
 )
 fig.update_traces(textposition='outside')
 st.plotly_chart(fig, use_container_width=True)
-
-# Filtro para mostrar el top N de usuarios
-top_n = st.slider("Selecciona el número de usuarios top a mostrar", min_value=5, max_value=50, value=10)
-
-# Mostrar el top N de usuarios
-st.subheader(f"Top {top_n} Usuarios con Más Depósitos")
-top_usuarios = usuarios_depositos.head(top_n)
-st.dataframe(top_usuarios)
-
-# Gráfico de barras para el top N de usuarios
-fig_top_n = px.bar(
-    top_usuarios,
-    x="user_id",
-    y="total_depositos",
-    title=f"Top {top_n} Usuarios con Más Depósitos",
-    labels={"user_id": "Usuario", "total_depositos": "Total de Depósitos"},
-    text="total_depositos"
-)
-fig_top_n.update_traces(textposition='outside')
-st.plotly_chart(fig_top_n, use_container_width=True)
