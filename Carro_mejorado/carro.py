@@ -30,7 +30,7 @@ class Car:
         self.stopping = False
         self.stop_start_time = None
         
-    self.body = self.create_car_body()
+        self.body = self.create_car_body()
 
     def create_car_body(self):
         return self.canvas.create_polygon(
@@ -58,7 +58,7 @@ class Car:
         ]
         self.canvas.coords(self.body, *body_coords)
 
-def move(self):
+    def move(self):
         current_time = time.time()
         dt = current_time - self.last_time
         self.last_time = current_time
@@ -112,8 +112,8 @@ canvas.create_line(100, 400, 100, 200, width=20, fill='gray')
 car = Car(canvas)
 
 def game_loop():
- car.move()
-window.after(30, game_loop)
+    car.move()
+    window.after(30, game_loop)
 
 game_loop()
 window.mainloop()
